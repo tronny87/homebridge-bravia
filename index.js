@@ -8,48 +8,41 @@ var wol = require("wake_on_lan");
 const os = require('os');
 var debug = false;
 
-var Service;
-var Characteristic;
+var Service, Characteristic, Accessory, UUIDGen, STORAGE_PATH;
 
-function BraviaPlatform(log, config){
+function BraviaPlatform(log, config, api){
   this.log = log;
   this.config = config;
-  this.accesoryCallback = null;
   debug = config.debug;
-}
-
-BraviaPlatform.prototype.accessories = function(callback) {
-  let that = this;
-  that.accessories = [];
-  that.config.tvs.forEach(function(tv) {
-    that.accessories.push(new SonyTV(that.log, tv));
-  });
-  that.accesoryCallback = callback;
-  that.checkAccessoryCallback();
-}
-
-BraviaPlatform.prototype.checkAccessoryCallback = function() {
-  let that = this;
-  var ready = true;
-  //do accessory callback if all TVs are ready
-  that.accessories.forEach(function(sonyTV) {
-    if(!sonyTV.statusCheck()){
-      ready = false;
-    }
-  });
-  if(!ready){
-    setTimeout(function(){
-      that.checkAccessoryCallback();
-    },500);
+  this.api = api;
+  if(!config.tvs){
+    log("Warning: Bravia plugin not configured.");
+    return;
   }
-  else{
-    if(!isNull(that.accesoryCallback))
-      that.accesoryCallback(that.accessories);
-  }
+  this.devices = [];
+  const self = this;
+  api.on("didFinishLaunching", function(){
+    //TODO: start only those who didn't start yet
+//    self.config.tvs.forEach(function(tv) {
+//      self.devices.push(new SonyTV(self, tv));
+//    });
+  });
 }
 
-function SonyTV(log, config) {
-  this.log = log;
+BraviaPlatform.prototype.configureAccessory = function (accessory) {
+  if (!this.config) { // happens if plugin is disabled and still active accessories
+    return;
+  }
+  this.log('Restoring ' + accessory.displayName + ' from HomeKit');
+  accessory.reachable = true;
+  this.devices.push(new SonyTV(this, accessory.context.config, accessory));
+  // TODO: remove TV if not in list
+//  self.api.unregisterPlatformAccessories('homebridge-bravia', 'BraviaPlatform', [accessory.accessory]);
+}
+
+function SonyTV(platform, config, accessory = null) {
+  this.platform = platform;
+  this.log = platform.log;
   this.config = config;
   this.name = config.name;
   this.ip = config.ip;
@@ -57,7 +50,7 @@ function SonyTV(log, config) {
   this.port = config.port || "80";
   this.tvsource = config.tvsource || null;
   this.soundoutput = config.soundoutput || "speaker";
-  this.cookiepath = config.cookiepath || os.homedir()+"/.homebridge/sonycookie";
+  this.cookiepath = STORAGE_PATH + "/sonycookie_" + this.name;
   this.updaterate = config.updaterate || 5000;
   this.starttimeout = config.starttimeout || 5000;
   this.comp = config.compatibilitymode;
@@ -94,6 +87,37 @@ function SonyTV(log, config) {
 
   this.services = [];
 
+  //TODO: removed service creation
+  // either createServices() or getServices()
+  if(accessory != null){
+    this.accessory = accessory;
+    this.getServices(accessory);
+  } else {
+    // TODO: trigger loading here, call this when we got the tv info
+    this.createServices();
+    var uuid = UUIDGen.generate(this.name);
+    this.log('Creating new accessory for ' + this.name);
+    this.accessory = new Accessory(this.name, uuid);
+    this.accessory.context.config = config;
+//    this.accessory.addService(new Service.Switch("Landroid " + name));
+    this.platform.api.registerPlatformAccessories('homebridge-bravia', 'BraviaPlatform', accessory);
+  }
+  // TODO: do this here?
+  this.checkRegistration();
+  this.updateStatus();
+}
+
+SonyTV.prototype.getServices = function(accessory) {
+  this.services = [];
+  this.tvService = accessory.getService(Service.Television);
+  this.services.push(this.tvService);
+  this.speakerService = accessory.getService(Service.TelevisionSpeaker);
+  this.services.push(this.speakerService);
+}
+
+SonyTV.prototype.createServices = function() {
+  ///sony/system/
+  //["getSystemInformation",[],["{\"product\":\"string\", \"region\":\"string\", \"language\":\"string\", \"model\":\"string\", \"serial\":\"string\", \"macAddr\":\"string\", \"name\":\"string\", \"generation\":\"string\", \"area\":\"string\", \"cid\":\"string\"}"],"1.0"]
   this.tvService = new Service.Television(this.name);
   this.tvService.setCharacteristic(Characteristic.ConfiguredName, this.name);
   this.tvService
@@ -136,13 +160,6 @@ function SonyTV(log, config) {
     .on('set', this.setVolume.bind(this));
   this.services.push(this.speakerService);
 
-  this.checkRegistration();
-  this.updateStatus();
-}
-
-SonyTV.prototype.getServices = function() {
-  ///sony/system/
-  //["getSystemInformation",[],["{\"product\":\"string\", \"region\":\"string\", \"language\":\"string\", \"model\":\"string\", \"serial\":\"string\", \"macAddr\":\"string\", \"name\":\"string\", \"generation\":\"string\", \"area\":\"string\", \"cid\":\"string\"}"],"1.0"]
   var informationService = new Service.AccessoryInformation();
   informationService
   .setCharacteristic(Characteristic.Manufacturer, "Sony")
@@ -150,14 +167,6 @@ SonyTV.prototype.getServices = function() {
   .setCharacteristic(Characteristic.SerialNumber, "12345");
   this.services.push(informationService);
   return this.services;
-}
-
-SonyTV.prototype.statusCheck = function() {
-  if(!this.registercheck) return false; // reg check not started
-  if(!this.authok) return false; // auth not yet succeeded
-  if(this.inputSourceList.length > 0) return false; // inputs not yet loaded
-  if(!this.appsLoaded) return false; // apps not yet loaded
-  return true;
 }
 
 //Do status check every 5 seconds
@@ -172,9 +181,25 @@ SonyTV.prototype.updateStatus = function() {
 
 //Check if Device is Registered
 //Prompt in Console for PIN for First Registration
+/* TODO: Add http server for pin entry
+  this.server = http.createServer(function (req, res) {
+    req.pipe(concat(function (body) {
+      var params = qs.parse(body.toString());
+      res.end(JSON.stringify(params) + '\n');
+      // todo: add validation
+    }));
+  });
+  this.server.listen(webserverPort, function () {
+    self.log("PIN entry web server listening");
+  }.bind(this));
+  this.server.on('error', function (err) {
+    self.log("PIN entry web server error:", err);
+  }.bind(this));
+*/
 SonyTV.prototype.checkRegistration = function() {
   var that = this;
   this.registercheck = true;
+  // TODO: change client id (per TV instance?)
   var post_data = '{"id":8,"method":"actRegister","version":"1.0","params":[{"clientid":"HomeBridge:34c48639-af3d-40e7-b1b2-74091375368c","nickname":"homebridge"},[{"clientid":"HomeBridge:34c48639-af3d-40e7-b1b2-74091375368c","value":"yes","nickname":"homebridge","function":"WOL"}]]}';
   var onError = function(err) {
     that.log("Error: ", err);
@@ -194,6 +219,7 @@ SonyTV.prototype.checkRegistration = function() {
       });
     } else {
       that.authok = true;
+      // TODO: this is only needed if this is the first load
       that.receiveNextSources();
     }
   };
@@ -808,7 +834,10 @@ function getSourceType(name) {
 }
 
 module.exports = function(homebridge) {
+  Accessory = homebridge.platformAccessory;
   Service = homebridge.hap.Service;
   Characteristic = homebridge.hap.Characteristic;
-  homebridge.registerPlatform("homebridge-bravia", "BraviaPlatform", BraviaPlatform);
+  UUIDGen = homebridge.hap.uuid;
+  STORAGE_PATH = homebridge.user.storagePath();
+  homebridge.registerPlatform("homebridge-bravia", "BraviaPlatform", BraviaPlatform, true);
 }

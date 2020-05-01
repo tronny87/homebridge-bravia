@@ -64,7 +64,7 @@
             "oneOf": [
               { "title": "Satellite", "enum": ["tv:dvbs"] },
               { "title": "Antenna", "enum": ["tv:dvbt"] },
-              { "title": "Cable", "enum": ["tv:tvbc"] }
+              { "title": "Cable", "enum": ["tv:dvbc"] }
             ],
             "required": false
           },
