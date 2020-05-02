@@ -36,7 +36,7 @@ BraviaPlatform.prototype.configureAccessory = function (accessory) {
   }
   if(this.config.tvs.find(tv=>tv.name === accessory.context.config.name) == undefined){
     this.log('Removing TV ' + accessory.displayName + ' from HomeKit');
-    this.api.unregisterPlatformAccessories('homebridge-bravia', 'BraviaPlatform', accessory);
+    this.api.unregisterPlatformAccessories('homebridge-bravia', 'BraviaPlatform', [ accessory ]);
   } else {
     this.log('Restoring ' + accessory.displayName + ' from HomeKit');
     // TODO: reachable
@@ -93,33 +93,25 @@ function SonyTV(platform, config, accessory = null) {
 
   this.services = [];
 
-  //TODO: removed service creation
-  // either createServices() or getServices()
   if(accessory != null){
     this.accessory = accessory;
-    this.getServices(accessory);
+    this.grabServices(accessory);
     this.applyCallbacks();
   } else {
-    // TODO: trigger loading here, call this when we got the tv info
-    this.createServices();
-    this.applyCallbacks();
     var uuid = UUIDGen.generate(this.name + "-SonyTV");
     this.log('Creating new accessory for ' + this.name);
     this.accessory = new Accessory(this.name, uuid);
     this.accessory.context.config = config;
     this.accessory.context.uuid = uuid;
     this.log('New TV ' + this.name + ', will be queried for channels/apps and added to HomeKit');
-    this.checkRegistration();
-    return;
-    // TODO: add services, register accessory
-//    this.accessory.addService(new Service.Switch("Landroid " + name));
-//    this.platform.api.registerPlatformAccessories('homebridge-bravia', 'BraviaPlatform', accessory);
+    this.createServices();
+    this.applyCallbacks();
   }
-  // TODO: do this here?
+  this.checkRegistration();
   this.updateStatus();
 }
 
-SonyTV.prototype.getServices = function(accessory) {
+SonyTV.prototype.grabServices = function(accessory) {
   //TODO. get input sources
   this.services = [];
   this.tvService = accessory.getService(Service.Television);
@@ -136,12 +128,13 @@ SonyTV.prototype.createServices = function() {
   this.services.push(this.tvService);
   this.speakerService = new Service.TelevisionSpeaker();
   this.services.push(this.speakerService);
-  var informationService = new Service.AccessoryInformation();
-  informationService
-  .setCharacteristic(Characteristic.Manufacturer, "Sony")
-  .setCharacteristic(Characteristic.Model, "Android TV")
-  .setCharacteristic(Characteristic.SerialNumber, "12345");
-  this.services.push(informationService);
+  // TODO: information services
+//  var informationService = new Service.AccessoryInformation();
+//  informationService
+//  .setCharacteristic(Characteristic.Manufacturer, "Sony")
+//  .setCharacteristic(Characteristic.Model, "Android TV")
+//  .setCharacteristic(Characteristic.SerialNumber, "12345");
+//  this.services.push(informationService);
   return this.services;
 }
 
@@ -193,22 +186,6 @@ SonyTV.prototype.updateStatus = function() {
 }
 
 //Check if Device is Registered
-//Prompt in Console for PIN for First Registration
-/* TODO: Add http server for pin entry
-  this.server = http.createServer(function (req, res) {
-    req.pipe(concat(function (body) {
-      var params = qs.parse(body.toString());
-      res.end(JSON.stringify(params) + '\n');
-      // todo: add validation
-    }));
-  });
-  this.server.listen(webserverPort, function () {
-    self.log("PIN entry web server listening");
-  }.bind(this));
-  this.server.on('error', function (err) {
-    self.log("PIN entry web server error:", err);
-  }.bind(this));
-*/
 SonyTV.prototype.checkRegistration = function() {
   let self = this;
   this.registercheck = true;
@@ -245,17 +222,30 @@ SonyTV.prototype.checkRegistration = function() {
       }.bind(self));
     } else {
       self.authok = true;
-      // TODO: this is only needed if this is the first load
       if(!self.accessory.context.hasReceivedSources) self.receiveNextSources();
     }
   };
   self.makeHttpRequest(onError, onSucces, "/sony/accessControl/", post_data,false);
 }
 
+SonyTV.prototype.registerAccessory = function() {
+  let self = this;
+  this.accessory.context.hasReceivedSources = true;
+  this.services.forEach(service=>{
+    self.accessory.addService(service);
+  });
+  this.log("Registering HomeBridge Accessory for " + this.name);
+  this.platform.api.registerPlatformAccessories('homebridge-bravia', 'BraviaPlatform', [ this.accessory ]);
+}
+
 SonyTV.prototype.receiveNextSources = function() {
   let that = this;
   if(this.inputSourceList.length == 0){
-    if(this.useApps && !this.appsLoaded) this.receiveApplications();
+    if(this.useApps && !this.appsLoaded){
+      this.receiveApplications();
+    } else{
+      this.registerAccessory();
+    }
     return;
   }
   var source = this.inputSourceList.shift();
@@ -315,7 +305,7 @@ SonyTV.prototype.receiveApplications = function() {
   var onError = function(err) {
     that.log("Error loading applications:");
     that.log(err);
-    that.appsLoaded = true;
+    that.registerAccessory();
   };
   var onSucces = function(data) {
     try{
@@ -336,7 +326,7 @@ SonyTV.prototype.receiveApplications = function() {
     }catch(e){
       that.log(e);
     }
-    that.appsLoaded = true;
+    that.registerAccessory();
   };
   var post_data = '{"id":13,"method":"getApplicationList","version":"1.0","params":[]}';
   that.makeHttpRequest(onError, onSucces, "/sony/appControl", post_data, false);
