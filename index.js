@@ -55,13 +55,14 @@ function SonyTV(platform, config, accessory = null) {
   this.port = config.port || "80";
   this.tvsource = config.tvsource || null;
   this.soundoutput = config.soundoutput || "speaker";
-  this.cookiepath = STORAGE_PATH + "/sonycookie_" + this.name;
   this.updaterate = config.updaterate || 5000;
   this.starttimeout = config.starttimeout || 5000;
   this.comp = config.compatibilitymode;
+  this.serverPort = config.serverPort || 8999;
   this.sources = config.sources || ["extInput:hdmi", "extInput:component", "extInput:scart", "extInput:cec", "extInput:widi"];
   this.useApps = (isNull(config.applications)) ? false : (config.applications instanceof Array == true ? config.applications.length > 0 : config.applications);
   this.applications = (isNull(config.applications) || (config.applications instanceof Array != true)) ? [] : config.applications;
+  this.cookiepath = STORAGE_PATH + "/sonycookie_" + this.name;
 
   this.cookie = null;
   this.pwd = config.pwd || null;
@@ -106,6 +107,29 @@ function SonyTV(platform, config, accessory = null) {
     this.accessory = new Accessory(this.name, uuid);
     this.accessory.context.config = config;
     this.accessory.context.uuid = uuid;
+    this.server = http.createServer(function (req, res) {
+      console.log(req);
+      if(req.trailers && req.trailers.pin){
+        //TODO: process pin
+        res.writeHead(200, { 'Content-Type': 'text/html' }); 
+        res.write('<html><body>OK</body></html>');
+      } else {
+        res.writeHead(200, { 'Content-Type': 'text/html' }); 
+        // set response content    
+        res.write('<html><body><form action="/"><label for="pin">Enter PIN:</label><br><input type="text" id="pin" name="pin"><input type="submit" value="Submit"></form></body></html>');
+        res.end();
+      }
+//      var params = qs.parse(body.toString());
+//      res.end(JSON.stringify(params) + '\n');
+      // todo: add validation
+    });
+    const self = this;
+    this.server.listen(this.serverPort, function () {
+      self.log("PIN entry web server listening");
+    }.bind(this));
+    this.server.on('error', function (err) {
+      self.log("PIN entry web server error:", err);
+    }.bind(this));
     return;
     // TODO: add services, register accessory
 //    this.accessory.addService(new Service.Switch("Landroid " + name));
