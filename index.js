@@ -1,9 +1,8 @@
 "use strict";
-var ping = require('ping');
+//var ping = require('ping');
 var http = require('http');
 var url = require('url');
-var inherits = require('util').inherits;
-var prompt = require('prompt');
+//var prompt = require('prompt');
 var base64 = require('base-64');
 var wol = require("wake_on_lan");
 const os = require('os');
@@ -101,7 +100,6 @@ function SonyTV(platform, config, accessory = null) {
     this.getServices(accessory);
     this.applyCallbacks();
   } else {
-    this.log('New TV ' + this.name + ', will be queried for channels/apps and added to homekit');
     // TODO: trigger loading here, call this when we got the tv info
     this.createServices();
     this.applyCallbacks();
@@ -110,36 +108,19 @@ function SonyTV(platform, config, accessory = null) {
     this.accessory = new Accessory(this.name, uuid);
     this.accessory.context.config = config;
     this.accessory.context.uuid = uuid;
-    this.server = http.createServer(function (req, res) {
-      var urlObject = url.parse(req.url, true, false);
-      if(urlObject.query.pin){
-        //TODO: process pin
-        res.writeHead(200, { 'Content-Type': 'text/html' }); 
-        res.write('<html><body>OK</body></html>');
-      } else {
-        res.writeHead(200, { 'Content-Type': 'text/html' }); 
-        res.write('<html><body><form action="/"><label for="pin">Enter PIN:</label><br><input type="text" id="pin" name="pin"><input type="submit" value="Submit"></form></body></html>');
-        res.end();
-      }
-    });
-    const self = this;
-    this.server.listen(this.serverPort, function () {
-      self.log("PIN entry web server listening");
-    }.bind(this));
-    this.server.on('error', function (err) {
-      self.log("PIN entry web server error:", err);
-    }.bind(this));
+    this.log('New TV ' + this.name + ', will be queried for channels/apps and added to HomeKit');
+    this.checkRegistration();
     return;
     // TODO: add services, register accessory
 //    this.accessory.addService(new Service.Switch("Landroid " + name));
 //    this.platform.api.registerPlatformAccessories('homebridge-bravia', 'BraviaPlatform', accessory);
   }
-  this.checkRegistration();
   // TODO: do this here?
   this.updateStatus();
 }
 
 SonyTV.prototype.getServices = function(accessory) {
+  //TODO. get input sources
   this.services = [];
   this.tvService = accessory.getService(Service.Television);
   this.services.push(this.tvService);
@@ -229,34 +210,46 @@ SonyTV.prototype.updateStatus = function() {
   }.bind(this));
 */
 SonyTV.prototype.checkRegistration = function() {
-  var that = this;
+  let self = this;
   this.registercheck = true;
-  // TODO: change client id (per TV instance?)
-  var clientId = 'HomeBridge' + ':' + this.accessory.context.uuid;
+  var clientId = 'HomeBridge-Bravia' + ':' + this.accessory.context.uuid;
   var post_data = '{"id":8,"method":"actRegister","version":"1.0","params":[{"clientid":"'+clientId+'","nickname":"homebridge"},[{"clientid":"HomeBridge:34c48639-af3d-40e7-b1b2-74091375368c","value":"yes","nickname":"homebridge","function":"WOL"}]]}';
   var onError = function(err) {
-    that.log("Error: ", err);
+    self.log("Error: ", err);
     return false;
   };
   var onSucces = function(chunk) {
-    if(chunk.indexOf("error")>=0){if(debug) that.log("Error? ",chunk)}
+    if(chunk.indexOf("error")>=0){if(debug) self.log("Error? ",chunk)}
     if (chunk.indexOf("[]") < 0) {
-      that.log("Need to authenticate with TV!");
-      that.log("Please enter the PIN that should appear on your TV or add \"pwd\":\"PIN_HERE\" to your config.json and restart HomeBridge, then remove that line for the next restart.")
-      console.log("Enter PIN:");
-      prompt.start();
-      prompt.get(['pin'], function(err, result) {
-        if (err) return;
-        that.pwd = result.pin;
-        that.checkRegistration();
+      self.log("Need to authenticate with TV!");
+      self.log("Please enter the PIN that appears on your TV at http://"+os.hostname()+":"+self.webserverPort);
+      self.server = http.createServer(function (req, res) {
+        var urlObject = url.parse(req.url, true, false);
+        if(urlObject.query.pin){
+          res.writeHead(200, { 'Content-Type': 'text/html' }); 
+          res.write('<html><body>OK</body></html>');
+          self.pwd = urlObject.query.pin;
+          self.server.close();
+          self.checkRegistration();
+        } else {
+          res.writeHead(200, { 'Content-Type': 'text/html' }); 
+          res.write('<html><body><form action="/"><label for="pin">Enter PIN:</label><br><input type="text" id="pin" name="pin"><input type="submit" value="Submit"></form></body></html>');
+          res.end();
+        }
       });
+      self.server.listen(self.serverPort, function () {
+        self.log("PIN entry web server listening");
+      }.bind(self));
+      self.server.on('error', function (err) {
+        self.log("PIN entry web server error:", err);
+      }.bind(self));
     } else {
-      that.authok = true;
+      self.authok = true;
       // TODO: this is only needed if this is the first load
-      that.receiveNextSources();
+      if(!self.accessory.context.hasReceivedSources) self.receiveNextSources();
     }
   };
-  that.makeHttpRequest(onError, onSucces, "/sony/accessControl/", post_data,false);
+  self.makeHttpRequest(onError, onSucces, "/sony/accessControl/", post_data,false);
 }
 
 SonyTV.prototype.receiveNextSources = function() {
@@ -376,6 +369,7 @@ SonyTV.prototype.pollPlayContent = function() {
           var uri = result.uri
           if(that.currentUri != uri){
             that.currentUri = uri;
+            //TODO: inputSOurce 
             var inputSource = that.uriToInputSource[uri];
             if(!isNull(inputSource)){
               that.tvService.getCharacteristic(Characteristic.ActiveIdentifier).updateValue(inputSource.id);
@@ -415,6 +409,7 @@ SonyTV.prototype.setActiveApp = function(uri) {
 SonyTV.prototype.getActiveIdentifier = function(callback){
   var uri = this.currentUri;
   if(!isNull(uri)){
+    //TODO: inputSource
     var inputSource = this.uriToInputSource[uri];
     if(!isNull(inputSource)){
       if(!isNull(callback)) callback(null, inputSource.id);
@@ -425,6 +420,7 @@ SonyTV.prototype.getActiveIdentifier = function(callback){
 }
 
 SonyTV.prototype.setActiveIdentifier = function(identifier, callback){
+  //TODO: inputSOurces - grab from restored accessory!
   var inputSource = this.inputSources[identifier];
   if(!isNull(inputSource)){
     if(inputSource.type == Characteristic.InputSourceType.APPLICATION)
