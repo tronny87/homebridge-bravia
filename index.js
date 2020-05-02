@@ -1,6 +1,7 @@
 "use strict";
 var ping = require('ping');
 var http = require('http');
+var url = require('url');
 var inherits = require('util').inherits;
 var prompt = require('prompt');
 var base64 = require('base-64');
@@ -108,20 +109,16 @@ function SonyTV(platform, config, accessory = null) {
     this.accessory.context.config = config;
     this.accessory.context.uuid = uuid;
     this.server = http.createServer(function (req, res) {
-      console.log(req);
-      if(req.trailers && req.trailers.pin){
+      var urlObject = url.parse(req.url, true, false);
+      if(urlObject.query.pin){
         //TODO: process pin
         res.writeHead(200, { 'Content-Type': 'text/html' }); 
         res.write('<html><body>OK</body></html>');
       } else {
         res.writeHead(200, { 'Content-Type': 'text/html' }); 
-        // set response content    
         res.write('<html><body><form action="/"><label for="pin">Enter PIN:</label><br><input type="text" id="pin" name="pin"><input type="submit" value="Submit"></form></body></html>');
         res.end();
       }
-//      var params = qs.parse(body.toString());
-//      res.end(JSON.stringify(params) + '\n');
-      // todo: add validation
     });
     const self = this;
     this.server.listen(this.serverPort, function () {
