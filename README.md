@@ -14,7 +14,7 @@ Supports the following functions
 
 This plugin requires iOS 12.2, to use it with previous iOS versions install version 0.96 of this plugin.
 
-** Note for users of versions before 2.0: Updating to 2.0+ will force you to set up the TV (including all HomeKit automation) again **
+**Note for users of versions before 2.0: Updating to 2.0+ will force you to set up the TV (including all HomeKit automation) again**
 
 ## Installation
 - Install homebridge using: npm install -g homebridge
