@@ -118,8 +118,9 @@ SonyTV.prototype.grabServices = function(accessory) {
   let self = this;
   //FIXME: Hack, using subtype to store URI for channel
   accessory.services.forEach(service=>{
-    if(service.subtype !== undefined){
-      self.inputSources.push(service);
+    if((service.subtype !== undefined) && service.testCharacteristic(Characteristic.Identifier)){
+      var identifier = service.getCharacteristic(Characteristic.Identifier).value;
+      self.inputSources[identifier] = service;
       self.uriToInputSource[service.subtype] = service;
     }
   });
@@ -424,9 +425,9 @@ SonyTV.prototype.setActiveIdentifier = function(identifier, callback){
   var inputSource = this.inputSources[identifier];
   if(!isNull(inputSource)){
     if(inputSource.type == Characteristic.InputSourceType.APPLICATION)
-      this.setActiveApp(inputSource.uri);
+      this.setActiveApp(inputSource.subtype);
     else
-      this.setPlayContent(inputSource.uri);
+      this.setPlayContent(inputSource.subtype);
   }
   if(!isNull(callback)) callback(null, identifier);
 }
