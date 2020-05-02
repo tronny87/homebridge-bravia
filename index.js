@@ -22,22 +22,27 @@ function BraviaPlatform(log, config, api){
   this.devices = [];
   const self = this;
   api.on("didFinishLaunching", function(){
-    //TODO: start only those who didn't start yet
-//    self.config.tvs.forEach(function(tv) {
-//      self.devices.push(new SonyTV(self, tv));
-//    });
+    self.config.tvs.forEach(function(tv) {
+      if(self.devices.find(device=>device.name === tv.name) == undefined){
+        self.devices.push(new SonyTV(self, tv));
+      }
+    });
   });
 }
 
 BraviaPlatform.prototype.configureAccessory = function (accessory) {
-  if (!this.config) { // happens if plugin is disabled and still active accessories
+  if (!this.config || !this.config.tvs) { // happens if plugin is disabled and still active accessories
     return;
   }
-  this.log('Restoring ' + accessory.displayName + ' from HomeKit');
-  accessory.reachable = true;
-  this.devices.push(new SonyTV(this, accessory.context.config, accessory));
-  // TODO: remove TV if not in list
-//  self.api.unregisterPlatformAccessories('homebridge-bravia', 'BraviaPlatform', [accessory.accessory]);
+  if(this.config.tvs.find(tv=>tv.name === accessory.context.config.name) == undefined){
+    this.log('Removing TV ' + accessory.displayName + ' from HomeKit');
+    this.api.unregisterPlatformAccessories('homebridge-bravia', 'BraviaPlatform', accessory);
+  } else {
+    this.log('Restoring ' + accessory.displayName + ' from HomeKit');
+    // TODO: reachable
+    accessory.reachable = true;
+    this.devices.push(new SonyTV(this, accessory.context.config, accessory));
+  }
 }
 
 function SonyTV(platform, config, accessory = null) {
@@ -47,7 +52,7 @@ function SonyTV(platform, config, accessory = null) {
   this.name = config.name;
   this.ip = config.ip;
   this.mac = config.mac || null;
-  this.port = config.port || "80";
+  this.port = config.port || "80";
   this.tvsource = config.tvsource || null;
   this.soundoutput = config.soundoutput || "speaker";
   this.cookiepath = STORAGE_PATH + "/sonycookie_" + this.name;
@@ -93,17 +98,21 @@ function SonyTV(platform, config, accessory = null) {
     this.accessory = accessory;
     this.getServices(accessory);
   } else {
+    this.log('New TV ' + this.name + ', will be queried for channels/apps and added to homekit');
     // TODO: trigger loading here, call this when we got the tv info
     this.createServices();
-    var uuid = UUIDGen.generate(this.name);
+    var uuid = UUIDGen.generate(this.name + "-SonyTV");
     this.log('Creating new accessory for ' + this.name);
     this.accessory = new Accessory(this.name, uuid);
     this.accessory.context.config = config;
+    this.accessory.context.uuid = uuid;
+    return;
+    // TODO: add services, register accessory
 //    this.accessory.addService(new Service.Switch("Landroid " + name));
-    this.platform.api.registerPlatformAccessories('homebridge-bravia', 'BraviaPlatform', accessory);
+//    this.platform.api.registerPlatformAccessories('homebridge-bravia', 'BraviaPlatform', accessory);
   }
-  // TODO: do this here?
   this.checkRegistration();
+  // TODO: do this here?
   this.updateStatus();
 }
 
@@ -200,7 +209,8 @@ SonyTV.prototype.checkRegistration = function() {
   var that = this;
   this.registercheck = true;
   // TODO: change client id (per TV instance?)
-  var post_data = '{"id":8,"method":"actRegister","version":"1.0","params":[{"clientid":"HomeBridge:34c48639-af3d-40e7-b1b2-74091375368c","nickname":"homebridge"},[{"clientid":"HomeBridge:34c48639-af3d-40e7-b1b2-74091375368c","value":"yes","nickname":"homebridge","function":"WOL"}]]}';
+  var clientId = 'HomeBridge' + ':' + this.accessory.context.uuid;
+  var post_data = '{"id":8,"method":"actRegister","version":"1.0","params":[{"clientid":"'+clientId+'","nickname":"homebridge"},[{"clientid":"HomeBridge:34c48639-af3d-40e7-b1b2-74091375368c","value":"yes","nickname":"homebridge","function":"WOL"}]]}';
   var onError = function(err) {
     that.log("Error: ", err);
     return false;
