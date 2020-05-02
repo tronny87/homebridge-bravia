@@ -31,12 +31,15 @@ function BraviaPlatform(log, config, api){
 }
 
 BraviaPlatform.prototype.configureAccessory = function (accessory) {
+  let self = this;
   if (!this.config || !this.config.tvs) { // happens if plugin is disabled and still active accessories
     return;
   }
   if(this.config.tvs.find(tv=>tv.name === accessory.context.config.name) == undefined){
     this.log('Removing TV ' + accessory.displayName + ' from HomeKit');
-    this.api.unregisterPlatformAccessories('homebridge-bravia', 'BraviaPlatform', [ accessory ]);
+    this.api.on("didFinishLaunching", function(){
+      self.api.unregisterPlatformAccessories('homebridge-bravia', 'BraviaPlatform', [ accessory ]);
+    });
   } else {
     this.log('Restoring ' + accessory.displayName + ' from HomeKit');
     // TODO: reachable
