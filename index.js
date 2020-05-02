@@ -99,10 +99,12 @@ function SonyTV(platform, config, accessory = null) {
   if(accessory != null){
     this.accessory = accessory;
     this.getServices(accessory);
+    this.applyCallbacks();
   } else {
     this.log('New TV ' + this.name + ', will be queried for channels/apps and added to homekit');
     // TODO: trigger loading here, call this when we got the tv info
     this.createServices();
+    this.applyCallbacks();
     var uuid = UUIDGen.generate(this.name + "-SonyTV");
     this.log('Creating new accessory for ' + this.name);
     this.accessory = new Accessory(this.name, uuid);
@@ -143,12 +145,26 @@ SonyTV.prototype.getServices = function(accessory) {
   this.services.push(this.tvService);
   this.speakerService = accessory.getService(Service.TelevisionSpeaker);
   this.services.push(this.speakerService);
+  return this.services;
 }
 
 SonyTV.prototype.createServices = function() {
   ///sony/system/
   //["getSystemInformation",[],["{\"product\":\"string\", \"region\":\"string\", \"language\":\"string\", \"model\":\"string\", \"serial\":\"string\", \"macAddr\":\"string\", \"name\":\"string\", \"generation\":\"string\", \"area\":\"string\", \"cid\":\"string\"}"],"1.0"]
   this.tvService = new Service.Television(this.name);
+  this.services.push(this.tvService);
+  this.speakerService = new Service.TelevisionSpeaker();
+  this.services.push(this.speakerService);
+  var informationService = new Service.AccessoryInformation();
+  informationService
+  .setCharacteristic(Characteristic.Manufacturer, "Sony")
+  .setCharacteristic(Characteristic.Model, "Android TV")
+  .setCharacteristic(Characteristic.SerialNumber, "12345");
+  this.services.push(informationService);
+  return this.services;
+}
+
+SonyTV.prototype.applyCallbacks = function() {
   this.tvService.setCharacteristic(Characteristic.ConfiguredName, this.name);
   this.tvService
     .setCharacteristic(
@@ -159,19 +175,14 @@ SonyTV.prototype.createServices = function() {
     .getCharacteristic(Characteristic.Active)
     .on('set', this.setPowerState.bind(this))
     .on('get', this.getPowerState.bind(this));
-
   this.tvService.setCharacteristic(Characteristic.ActiveIdentifier, 0);
   this.tvService
     .getCharacteristic(Characteristic.ActiveIdentifier)
     .on('set', this.setActiveIdentifier.bind(this))
     .on('get', this.getActiveIdentifier.bind(this));
-
   this.tvService
     .getCharacteristic(Characteristic.RemoteKey)
     .on('set', this.setRemoteKey.bind(this));
-  this.services.push(this.tvService);
-
-  this.speakerService = new Service.TelevisionSpeaker();
   this.speakerService
     .setCharacteristic(Characteristic.Active, Characteristic.Active.ACTIVE);
   this.speakerService
@@ -188,15 +199,6 @@ SonyTV.prototype.createServices = function() {
 	this.speakerService.getCharacteristic(Characteristic.Volume)
     .on('get', this.getVolume.bind(this))
     .on('set', this.setVolume.bind(this));
-  this.services.push(this.speakerService);
-
-  var informationService = new Service.AccessoryInformation();
-  informationService
-  .setCharacteristic(Characteristic.Manufacturer, "Sony")
-  .setCharacteristic(Characteristic.Model, "Android TV")
-  .setCharacteristic(Characteristic.SerialNumber, "12345");
-  this.services.push(informationService);
-  return this.services;
 }
 
 //Do status check every 5 seconds
