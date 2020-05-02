@@ -112,7 +112,14 @@ function SonyTV(platform, config, accessory = null) {
 }
 
 SonyTV.prototype.grabServices = function(accessory) {
-  //TODO. get input sources
+  let self = this;
+  //FIXME: Hack, using subtype to store URI for channel
+  accessory.services.forEach(service=>{
+    if(service.subtype !== undefined){
+      self.inputSources.push(service);
+      self.uriToInputSource[service.subtype] = service;
+    }
+  });
   this.services = [];
   this.tvService = accessory.getService(Service.Television);
   this.services.push(this.tvService);
@@ -283,15 +290,13 @@ SonyTV.prototype.receiveSources = function(sourceName, sourceType) {
 
 SonyTV.prototype.addInputSource = function(name, uri, type) {
   let that = this;
+  // FIXME: Using subtype to store URI, hack!
   var inputSource = new Service.InputSource(name, uri); //displayname, subtype?
   inputSource.setCharacteristic(Characteristic.Identifier, that.inputSourceCount)
  	  .setCharacteristic(Characteristic.ConfiguredName, name)
  	  .setCharacteristic(Characteristic.CurrentVisibilityState, Characteristic.CurrentVisibilityState.SHOWN)
     .setCharacteristic(Characteristic.IsConfigured, Characteristic.IsConfigured.CONFIGURED)
  	  .setCharacteristic(Characteristic.InputSourceType, type);
-  inputSource.uri = uri;
-  inputSource.type = type;
-  inputSource.id = that.inputSourceCount;
   this.services.push(inputSource);
   this.tvService.addLinkedService(inputSource);
   this.inputSources[this.inputSourceCount] = inputSource;
@@ -361,8 +366,9 @@ SonyTV.prototype.pollPlayContent = function() {
             that.currentUri = uri;
             //TODO: inputSOurce 
             var inputSource = that.uriToInputSource[uri];
+            var id = inputSource.getCharacteristic(Characteristic.Identifier).value;
             if(!isNull(inputSource)){
-              that.tvService.getCharacteristic(Characteristic.ActiveIdentifier).updateValue(inputSource.id);
+              that.tvService.getCharacteristic(Characteristic.ActiveIdentifier).updateValue(id);
             }
           }
         }
@@ -401,8 +407,9 @@ SonyTV.prototype.getActiveIdentifier = function(callback){
   if(!isNull(uri)){
     //TODO: inputSource
     var inputSource = this.uriToInputSource[uri];
+    var id = inputSource.getCharacteristic(Characteristic.Identifier).value;
     if(!isNull(inputSource)){
-      if(!isNull(callback)) callback(null, inputSource.id);
+      if(!isNull(callback)) callback(null, id);
       return;
     }
   }
