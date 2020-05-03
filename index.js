@@ -369,9 +369,11 @@ SonyTV.prototype.pollPlayContent = function () {
             that.currentUri = uri;
             // TODO: inputSOurce
             var inputSource = that.uriToInputSource[uri];
-            var id = inputSource.getCharacteristic(Characteristic.Identifier).value;
-            if (!isNull(inputSource)) {
-              that.tvService.getCharacteristic(Characteristic.ActiveIdentifier).updateValue(id);
+            if(inputSource){
+              var id = inputSource.getCharacteristic(Characteristic.Identifier).value;
+              if (!isNull(inputSource)) {
+                that.tvService.getCharacteristic(Characteristic.ActiveIdentifier).updateValue(id);
+              }
             }
           }
         }
