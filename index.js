@@ -281,6 +281,7 @@ SonyTV.prototype.receiveSources = function (sourceName, sourceType) {
         });
       } else {
         that.log('Error loading sources for ' + sourceName);
+        that.log(data);
       }
     } catch (e) {
       that.log(e);
@@ -329,6 +330,7 @@ SonyTV.prototype.receiveApplications = function () {
         });
       } else {
         that.log('Error loading applications');
+        that.log(data);
       }
     } catch (e) {
       that.log(e);
