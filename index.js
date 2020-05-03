@@ -210,7 +210,7 @@ SonyTV.prototype.checkRegistration = function () {
     if (chunk.indexOf('[]') < 0) {
       self.log('Need to authenticate with TV!');
       self.log('Please enter the PIN that appears on your TV at http://' + os.hostname() + ':' + self.serverPort);
-      self.server = http.createServer(function (req, res) {
+      var self.server = http.createServer(function (req, res) {
         var urlObject = url.parse(req.url, true, false);
         if (urlObject.query.pin) {
           res.writeHead(200, { 'Content-Type': 'text/html' });
