@@ -410,19 +410,19 @@ SonyTV.prototype.setActiveApp = function (uri) {
 SonyTV.prototype.getActiveIdentifier = function (callback) {
   var uri = this.currentUri;
   if (!isNull(uri)) {
-    // TODO: inputSource
     var inputSource = this.uriToInputSource[uri];
-    var id = inputSource.getCharacteristic(Characteristic.Identifier).value;
-    if (!isNull(inputSource)) {
-      if (!isNull(callback)) callback(null, id);
-      return;
+    if(inputSource){
+      var id = inputSource.getCharacteristic(Characteristic.Identifier).value;
+      if (!isNull(inputSource)) {
+        if (!isNull(callback)) callback(null, id);
+        return;
+      }
     }
   }
   if (!isNull(callback)) callback(null, 0);
 };
 
 SonyTV.prototype.setActiveIdentifier = function (identifier, callback) {
-  // TODO: inputSOurces - grab from restored accessory!
   var inputSource = this.inputSources[identifier];
   if (inputSource && inputSource.testCharacteristic(Characteristic.InputSourceType) &&
     inputSource.getCharacteristic(Characteristic.InputSourceType).value == Characteristic.InputSourceType.APPLICATION) {
