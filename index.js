@@ -285,7 +285,8 @@ SonyTV.prototype.receiveSources = function (sourceName, sourceType) {
           that.addInputSource(source.title, source.uri, sourceType);
         });
       } else {
-        that.log('Error loading sources for ' + sourceName);
+        that.log('Can\'t load sources for ' + sourceName);
+        that.log('TV response:');
         that.log(data);
       }
     } catch (e) {
@@ -334,7 +335,8 @@ SonyTV.prototype.receiveApplications = function () {
           }
         });
       } else {
-        that.log('Error loading applications');
+        that.log('Can\'t load applications.');
+        that.log('TV response:');
         that.log(data);
       }
     } catch (e) {
