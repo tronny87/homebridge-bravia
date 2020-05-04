@@ -242,10 +242,10 @@ SonyTV.prototype.registerAccessory = function () {
   const self = this;
   this.accessory.context.hasReceivedSources = true;
   this.services.forEach(service => {
-    try{
+    try {
       self.accessory.addService(service);
-    } catch(e){
-      self.log("Error adding channel service!");
+    } catch (e) {
+      self.log('Error adding channel service!');
       self.log(e);
     }
   });
@@ -376,7 +376,7 @@ SonyTV.prototype.pollPlayContent = function () {
             that.currentUri = uri;
             // TODO: inputSOurce
             var inputSource = that.uriToInputSource[uri];
-            if(inputSource){
+            if (inputSource) {
               var id = inputSource.getCharacteristic(Characteristic.Identifier).value;
               if (!isNull(inputSource)) {
                 that.tvService.getCharacteristic(Characteristic.ActiveIdentifier).updateValue(id);
@@ -418,7 +418,7 @@ SonyTV.prototype.getActiveIdentifier = function (callback) {
   var uri = this.currentUri;
   if (!isNull(uri)) {
     var inputSource = this.uriToInputSource[uri];
-    if(inputSource){
+    if (inputSource) {
       var id = inputSource.getCharacteristic(Characteristic.Identifier).value;
       if (!isNull(inputSource)) {
         if (!isNull(callback)) callback(null, id);
