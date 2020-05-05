@@ -121,7 +121,7 @@ function SonyTV (platform, config, accessory = null) {
 SonyTV.prototype.start = function () {
   this.checkRegistration();
   this.updateStatus();
-}
+};
 
 // get the services (TV service, channels) from a restored HomeKit accessory
 SonyTV.prototype.grabServices = function (accessory) {
@@ -133,9 +133,9 @@ SonyTV.prototype.grabServices = function (accessory) {
       self.inputSourceMap[identifier] = service;
       self.uriToInputSource[service.subtype] = service;
       self.channelServices.push(service);
-      //restore input source count
-      if(self.inputSourceCount <= identifier){
-        self.inputSourceCount = identifier+1;
+      // restore input source count
+      if (self.inputSourceCount <= identifier) {
+        self.inputSourceCount = identifier + 1;
       }
     }
   });
@@ -276,55 +276,55 @@ SonyTV.prototype.addInputSource = function (name, uri, type) {
 };
 
 SonyTV.prototype.haveChannel = function (source) {
-  if(this.scannedChannels.find(function (channel) {
-    if(( source.subtype == channel[1] ) &&
-      ( source.getCharacteristic(Characteristic.InputSourceType).value == channel[2] ) &&
-      ( source.getCharacteristic(Characteristic.ConfiguredName).value == channel[0]) ) {
+  if (this.scannedChannels.find(function (channel) {
+    if ((source.subtype == channel[1]) &&
+      (source.getCharacteristic(Characteristic.InputSourceType).value == channel[2]) &&
+      (source.getCharacteristic(Characteristic.ConfiguredName).value == channel[0])) {
       return true;
     }
-  })!==undefined) return true;
+  }) !== undefined) return true;
   return false;
-}
+};
 
 SonyTV.prototype.haveInputSource = function (name, uri, type) {
-  if(this.channelServices.find(function (source) {
-    if(( source.subtype == uri ) &&
-      ( source.getCharacteristic(Characteristic.InputSourceType).value == type ) &&
-      ( source.getCharacteristic(Characteristic.ConfiguredName).value == name) ) {
+  if (this.channelServices.find(function (source) {
+    if ((source.subtype == uri) &&
+      (source.getCharacteristic(Characteristic.InputSourceType).value == type) &&
+      (source.getCharacteristic(Characteristic.ConfiguredName).value == name)) {
       return true;
     }
-  })!==undefined) return true;
+  }) !== undefined) return true;
   return false;
-}
+};
 
-// registers the TV accessory with HomeKit
-SonyTV.prototype.registerAccessory = function () {
+// syncs the channels and publishes/updates the TV accessory for HomeKit
+SonyTV.prototype.syncAccessory = function () {
   const self = this;
   var changeDone = false;
   // add new channels
   this.scannedChannels.forEach(channel => {
-    if(!self.haveInputSource(channel[0], channel[1], channel[2])){
+    if (!self.haveInputSource(channel[0], channel[1], channel[2])) {
       self.addInputSource(channel[0], channel[1], channel[2]);
       changeDone = true;
     }
   });
   // remove old channels
   this.channelServices.forEach((service, idx, obj) => {
-    if(!self.haveChannel(service)){
+    if (!self.haveChannel(service)) {
       // TODO: make this function?
       self.tvService.removeLinkedService(service);
       self.accessory.removeService(service);
-      self.log("Removing nonexisting channel");
+      self.log('Removing nonexisting channel');
       obj.splice(idx, 1);
       changeDone = true;
     }
   });
-  if(!this.accessory.context.isRegisteredInHomeKit) {
+  if (!this.accessory.context.isRegisteredInHomeKit) {
     // add base services that haven't been added yet
     this.services.forEach(service => {
       try {
-        if(!self.accessory.services.includes(service)){
-          self.log("Adding base service to accessory");
+        if (!self.accessory.services.includes(service)) {
+          self.log('Adding base service to accessory');
           self.accessory.addService(service);
           changeDone = true;
         }
@@ -336,19 +336,20 @@ SonyTV.prototype.registerAccessory = function () {
     this.log('Registering HomeBridge Accessory for ' + this.name);
     this.accessory.context.isRegisteredInHomeKit = true;
     this.platform.api.registerPlatformAccessories('homebridge-bravia', 'BraviaPlatform', [this.accessory]);
-  } else if(changeDone){
+  } else if (changeDone) {
     this.log('Updating HomeBridge Accessory for ' + this.name);
     this.platform.api.updatePlatformAccessories([this.accessory]);
   }
 };
 
+// initialize a scan for new sources, currently only called when starting the plugin
 SonyTV.prototype.receiveSources = function () {
-  if(!this.receivingSources){
+  if (!this.receivingSources) {
     this.receivingSources = true;
     this.scannedChannels = [];
     this.receiveNextSources();
   }
-}
+};
 // receive the next sources in the inputSourceList, register accessory if all have been received
 SonyTV.prototype.receiveNextSources = function () {
   const that = this;
@@ -357,7 +358,7 @@ SonyTV.prototype.receiveNextSources = function () {
       this.receiveApplications();
     } else {
       this.receivingSources = false;
-      this.registerAccessory();
+      this.syncAccessory();
     }
     return;
   }
@@ -404,7 +405,7 @@ SonyTV.prototype.receiveApplications = function () {
     that.log('Error loading applications:');
     that.log(err);
     that.receivingSources = false;
-    that.registerAccessory();
+    that.syncAccessory();
   };
   var onSucces = function (data) {
     try {
@@ -415,7 +416,7 @@ SonyTV.prototype.receiveApplications = function () {
           if (that.applications.length == 0 || that.applications.map(app => app.title).filter(title => source.title.includes(title)).length > 0) {
             that.scannedChannels.push([source.title, source.uri, Characteristic.InputSourceType.APPLICATION]);
           } else {
-//            that.log('Ignoring application: ' + source.title);
+            //            that.log('Ignoring application: ' + source.title);
           }
         });
       } else {
@@ -427,7 +428,7 @@ SonyTV.prototype.receiveApplications = function () {
       that.log(e);
     }
     that.receivingSources = false;
-    that.registerAccessory();
+    that.syncAccessory();
   };
   var post_data = '{"id":13,"method":"getApplicationList","version":"1.0","params":[]}';
   that.makeHttpRequest(onError, onSucces, '/sony/appControl', post_data, false);
