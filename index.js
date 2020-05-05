@@ -1,5 +1,4 @@
 'use strict';
-// var ping = require('ping');
 var http = require('http');
 var url = require('url');
 var base64 = require('base-64');
@@ -683,15 +682,8 @@ SonyTV.prototype.getPowerState = function (callback) {
     }
   };
   try {
-    /* ping.sys.probe(that.ip, function(isAlive) {
-      if (isAlive) { */
     var post_data = '{"id":2,"method":"getPowerStatus","version":"1.0","params":[]}';
     that.makeHttpRequest(onError, onSucces, '/sony/system/', post_data, false);
-    /* } else {
-        that.updatePowerState(false);
-        if (!isNull(callback)) callback(null, false);
-      }
-    }); */
   } catch (globalExcp) {
     if (debug) console.log(globalExcp);
     that.updatePowerState(false);
