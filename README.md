@@ -94,6 +94,6 @@ In addition to the iOS remote the plugin also exposes the TV speaker as a HomeKi
 
 ## Notes
 ### Channel List
-Currently the channel list is fixed the way it is when the plugin first scans the channels. Re-add or rename the TV (in homebridge, not in the HomeKit app) to scan the channels again.
+If the channel list or the applications on the TV change the changes will be reflected on the next HomeBridge reboot.
 ### Misc
 Thanks go out to "lombi" for his sony bravia homebridge plugin, which this plugin is heavily based on.
