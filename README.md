@@ -59,23 +59,23 @@ Example config:
 Required options:
   - `tvs` is the list of Sony TVs in your home
   - `name` is the name of your TV as it appears in HomeKit
-  - `ip` is the IP address of your TV, find it out through your router or set it in the TV
+  - `ip` is the IP address or host name of your TV, find and/or set it through your router or set it in the TV
 
 Optional options (all inside one TV entry):
   - `sources` is an array of sources to display in HomeKit, default `["extInput:hdmi", "extInput:component", "extInput:scart", "extInput:cec", "extInput:widi"]`
-  - `tvsource` is your preferred TV source, can be `tv:dvbt`, `tv:dvbc` or `tv:dvbs`, default none (no TV channels listed as inputs)
+  - `tvsource` is your preferred TV source, can be `tv:dvbt`, `tv:dvbc` or `tv:dvbs` (antenna, cable or sat), default none
   - `applications` can be used to enable listing applications in the input list, default `false`
-  -- Providing an array of objects with application titles will only add applications whose names contain the titles to the input list:
-    ```
-    "applications": [
-                        {
-                            "title": "Netflix"
-                        },
-                        {
-                            "title": "Plex"
-                        },
-                    ]
-    ```
+    - Providing an array of objects with application titles will only add applications whose names contain the titles to the input list:
+      ```
+      "applications": [
+                          {
+                              "title": "Netflix"
+                          },
+                          {
+                              "title": "Plex"
+                          },
+                      ]
+      ```
   - `soundoutput` is your preferred TV sound output, can be `speaker` or `headphone`, default `speaker`
   - `port` is the IP port of your TV, default 80
   - `mac` is the MAC address of your TV, set it to use WOL instead of HTTP to wake up the TV, default none
@@ -89,6 +89,8 @@ You can turn your TV on and off through Siri and Apples Home app.
 All Channels, Inputs and Applications can be selected in the HomeKit inputs selector
 #### TV Remote
 The TV registers as a TV remote device in HomeKit and allows to use basic function keys and set the volume through the Apple Remote app or iOS configuration screen. Use your phones volume knobs to set the TV volume!
+#### TV Speaker
+In addition to the iOS remote the plugin also exposes the TV speaker as a HomeKit accessory however only some apps show that accessory type, Apples Home app does not.
 
 ## Notes
 ### Channel List
