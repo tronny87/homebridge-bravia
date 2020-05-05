@@ -19,7 +19,7 @@ This plugin requires iOS 12.2, to use it with previous iOS versions install vers
 ## Installation
 - Install homebridge using: npm install -g homebridge
 - Install this plugin using: npm install -g homebridge-bravia
-- Configure config.json or configure settings through web UI (config-ui-x)
+- Configure config.json or configure settings through web UI (see below for the options)
 - Set "Remote start" to ON in your TV Settings->Network->Remote Start
 - Turn on the TV
 - Restart Homebridge
