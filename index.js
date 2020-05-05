@@ -243,7 +243,7 @@ SonyTV.prototype.checkRegistration = function () {
     }
   };
   self.makeHttpRequest(onError, onSucces, '/sony/accessControl/', post_data, false);
-};u
+};
 
 // creates homebridge service for TV input
 SonyTV.prototype.addInputSource = function (name, uri, type) {
