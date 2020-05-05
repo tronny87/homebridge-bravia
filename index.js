@@ -384,7 +384,6 @@ SonyTV.prototype.pollPlayContent = function () {
           var uri = result.uri;
           if (that.currentUri != uri) {
             that.currentUri = uri;
-            // TODO: inputSOurce
             var inputSource = that.uriToInputSource[uri];
             if (inputSource) {
               var id = inputSource.getCharacteristic(Characteristic.Identifier).value;
