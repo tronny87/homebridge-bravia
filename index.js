@@ -239,11 +239,11 @@ SonyTV.prototype.checkRegistration = function () {
       });
     } else {
       self.authok = true;
-      if (!self.accessory.context.hasReceivedSources) self.receiveNextSources();
+      if (!self.accessory.context.hasReceivedSources) self.receiveSources();
     }
   };
   self.makeHttpRequest(onError, onSucces, '/sony/accessControl/', post_data, false);
-};
+};u
 
 // creates homebridge service for TV input
 SonyTV.prototype.addInputSource = function (name, uri, type) {
@@ -296,6 +296,13 @@ SonyTV.prototype.registerAccessory = function () {
   this.platform.api.registerPlatformAccessories('homebridge-bravia', 'BraviaPlatform', [this.accessory]);
 };
 
+SonyTV.prototype.receiveSources = function () {
+  if(!this.receivingSources){
+    this.receivingSources = true;
+    this.scannedChannels = [];
+    this.receiveNextSources();
+  }
+}
 // receive the next sources in the inputSourceList, register accessory if all have been received
 SonyTV.prototype.receiveNextSources = function () {
   const that = this;
@@ -303,18 +310,19 @@ SonyTV.prototype.receiveNextSources = function () {
     if (this.useApps && !this.appsLoaded) {
       this.receiveApplications();
     } else {
+      this.receivingSources = false;
       this.registerAccessory();
     }
     return;
   }
   var source = this.inputSourceList.shift();
   if (!isNull(source)) {
-    this.receiveSources(source.name, source.type);
+    this.receiveSource(source.name, source.type);
   }
 };
 
 // TV http call to receive input list for source
-SonyTV.prototype.receiveSources = function (sourceName, sourceType) {
+SonyTV.prototype.receiveSource = function (sourceName, sourceType) {
   const that = this;
   var onError = function (err) {
     that.log('Error loading sources for ' + sourceName);
@@ -349,6 +357,7 @@ SonyTV.prototype.receiveApplications = function () {
   var onError = function (err) {
     that.log('Error loading applications:');
     that.log(err);
+    that.receivingSources = false;
     that.registerAccessory();
   };
   var onSucces = function (data) {
@@ -371,6 +380,7 @@ SonyTV.prototype.receiveApplications = function () {
     } catch (e) {
       that.log(e);
     }
+    that.receivingSources = false;
     that.registerAccessory();
   };
   var post_data = '{"id":13,"method":"getApplicationList","version":"1.0","params":[]}';
