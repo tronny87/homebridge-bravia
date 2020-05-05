@@ -29,6 +29,7 @@ function BraviaPlatform (log, config, api) {
   });
 }
 
+// called by homebridge when a device is restored from cache
 BraviaPlatform.prototype.configureAccessory = function (accessory) {
   const self = this;
   if (!this.config || !this.config.tvs) { // happens if plugin is disabled and still active accessories
@@ -47,6 +48,7 @@ BraviaPlatform.prototype.configureAccessory = function (accessory) {
   }
 };
 
+// TV accessory class
 function SonyTV (platform, config, accessory = null) {
   this.platform = platform;
   this.log = platform.log;
@@ -113,6 +115,7 @@ function SonyTV (platform, config, accessory = null) {
   this.updateStatus();
 }
 
+// get the services (TV service, channels) from a restored HomeKit accessory
 SonyTV.prototype.grabServices = function (accessory) {
   const self = this;
   // FIXME: Hack, using subtype to store URI for channel
@@ -131,6 +134,7 @@ SonyTV.prototype.grabServices = function (accessory) {
   return this.services;
 };
 
+// create the television service for a new TV accessory
 SonyTV.prototype.createServices = function () {
   /// sony/system/
   // ["getSystemInformation",[],["{\"product\":\"string\", \"region\":\"string\", \"language\":\"string\", \"model\":\"string\", \"serial\":\"string\", \"macAddr\":\"string\", \"name\":\"string\", \"generation\":\"string\", \"area\":\"string\", \"cid\":\"string\"}"],"1.0"]
@@ -148,6 +152,7 @@ SonyTV.prototype.createServices = function () {
   return this.services;
 };
 
+// sets the callbacks for the homebridge services to call the functions of this TV instance
 SonyTV.prototype.applyCallbacks = function () {
   this.tvService.setCharacteristic(Characteristic.ConfiguredName, this.name);
   this.tvService
@@ -185,7 +190,7 @@ SonyTV.prototype.applyCallbacks = function () {
     .on('set', this.setVolume.bind(this));
 };
 
-// Do status check every 5 seconds
+// Do TV status check every 5 seconds
 SonyTV.prototype.updateStatus = function () {
   var that = this;
   setTimeout(function () {
@@ -195,7 +200,7 @@ SonyTV.prototype.updateStatus = function () {
   }, this.updaterate);
 };
 
-// Check if Device is Registered
+// Check if we already registered with the TV
 SonyTV.prototype.checkRegistration = function () {
   const self = this;
   this.registercheck = true;
@@ -238,6 +243,7 @@ SonyTV.prototype.checkRegistration = function () {
   self.makeHttpRequest(onError, onSucces, '/sony/accessControl/', post_data, false);
 };
 
+// registers the TV accessory with HomeKit
 SonyTV.prototype.registerAccessory = function () {
   const self = this;
   this.accessory.context.hasReceivedSources = true;
@@ -253,6 +259,7 @@ SonyTV.prototype.registerAccessory = function () {
   this.platform.api.registerPlatformAccessories('homebridge-bravia', 'BraviaPlatform', [this.accessory]);
 };
 
+// receive the next sources in the inputSourceList, register accessory if all have been received
 SonyTV.prototype.receiveNextSources = function () {
   const that = this;
   if (this.inputSourceList.length == 0) {
@@ -269,6 +276,7 @@ SonyTV.prototype.receiveNextSources = function () {
   }
 };
 
+// TV http call to receive input list for source
 SonyTV.prototype.receiveSources = function (sourceName, sourceType) {
   const that = this;
   var onError = function (err) {
@@ -298,6 +306,7 @@ SonyTV.prototype.receiveSources = function (sourceName, sourceType) {
   that.makeHttpRequest(onError, onSucces, '/sony/avContent', post_data, false);
 };
 
+// creates homebridge service for TV input
 SonyTV.prototype.addInputSource = function (name, uri, type) {
   const that = this;
   // FIXME: Using subtype to store URI, hack!
@@ -315,6 +324,7 @@ SonyTV.prototype.addInputSource = function (name, uri, type) {
   this.log('Added input ' + name);// +" with URI "+uri);
 };
 
+// TV https call to receive application list
 SonyTV.prototype.receiveApplications = function () {
   const that = this;
   var onError = function (err) {
@@ -348,6 +358,7 @@ SonyTV.prototype.receiveApplications = function () {
   that.makeHttpRequest(onError, onSucces, '/sony/appControl', post_data, false);
 };
 
+// TV http call to poll play content
 SonyTV.prototype.pollPlayContent = function () {
   // TODO: check app list if no play content for currentUri
   const that = this;
@@ -392,6 +403,7 @@ SonyTV.prototype.pollPlayContent = function () {
   that.makeHttpRequest(onError, onSucces, '/sony/avContent/', post_data, false);
 };
 
+// TV http call to set play content
 SonyTV.prototype.setPlayContent = function (uri) {
   const that = this;
   var post_data = '{"id":13,"method":"setPlayContent","version":"1.0","params":[{ "uri": "' + uri + '" }]}';
@@ -403,6 +415,7 @@ SonyTV.prototype.setPlayContent = function (uri) {
   that.makeHttpRequest(onError, onSucces, '/sony/avContent/', post_data, true);
 };
 
+// TV http call to set the active app
 SonyTV.prototype.setActiveApp = function (uri) {
   const that = this;
   var post_data = '{"id":13,"method":"setActiveApp","version":"1.0","params":[{"uri":"' + uri + '"}]}';
@@ -414,6 +427,7 @@ SonyTV.prototype.setActiveApp = function (uri) {
   that.makeHttpRequest(onError, onSucces, '/sony/appControl', post_data, true);
 };
 
+// homebridge callback to get current channel identifier
 SonyTV.prototype.getActiveIdentifier = function (callback) {
   var uri = this.currentUri;
   if (!isNull(uri)) {
@@ -429,6 +443,7 @@ SonyTV.prototype.getActiveIdentifier = function (callback) {
   if (!isNull(callback)) callback(null, 0);
 };
 
+// homebridge callback to set current channel
 SonyTV.prototype.setActiveIdentifier = function (identifier, callback) {
   var inputSource = this.inputSources[identifier];
   if (inputSource && inputSource.testCharacteristic(Characteristic.InputSourceType) &&
@@ -440,6 +455,7 @@ SonyTV.prototype.setActiveIdentifier = function (identifier, callback) {
   if (!isNull(callback)) callback(null, identifier);
 };
 
+// homebridge callback to set volume via selector (up/down)
 SonyTV.prototype.setVolumeSelector = function (key, callback) {
   const that = this;
   var value = '';
@@ -462,6 +478,7 @@ SonyTV.prototype.setVolumeSelector = function (key, callback) {
   that.makeHttpRequest(onError, onSucces, '', post_data, false);
 };
 
+// homebridge callback to set pressed key
 SonyTV.prototype.setRemoteKey = function (key, callback) {
   var value = '';
   var that = this;
@@ -518,6 +535,7 @@ SonyTV.prototype.setRemoteKey = function (key, callback) {
   that.makeHttpRequest(onError, onSucces, '', post_data, false);
 };
 
+// homebridge callback to get muted state
 SonyTV.prototype.getMuted = function (callback) {
   var that = this;
   if (!that.power) {
@@ -559,6 +577,7 @@ SonyTV.prototype.getMuted = function (callback) {
   that.makeHttpRequest(onError, onSucces, '/sony/audio/', post_data, false);
 };
 
+// homebridge callback to set muted state
 SonyTV.prototype.setMuted = function (muted, callback) {
   var that = this;
   if (!that.power) {
@@ -578,6 +597,7 @@ SonyTV.prototype.setMuted = function (muted, callback) {
   that.makeHttpRequest(onError, onSucces, '/sony/audio/', post_data, false);
 };
 
+// homebridge callback to get absoluet volume
 SonyTV.prototype.getVolume = function (callback) {
   var that = this;
   if (!that.power) {
@@ -619,6 +639,7 @@ SonyTV.prototype.getVolume = function (callback) {
   that.makeHttpRequest(onError, onSucces, '/sony/audio/', post_data, false);
 };
 
+// homebridge callback to set absolute volume
 SonyTV.prototype.setVolume = function (volume, callback) {
   var that = this;
   if (!that.power) {
@@ -636,6 +657,7 @@ SonyTV.prototype.setVolume = function (volume, callback) {
   that.makeHttpRequest(onError, onSucces, '/sony/audio/', post_data, false);
 };
 
+// homebridge callback to get power state
 SonyTV.prototype.getPowerState = function (callback) {
   var that = this;
   var onError = function (err) {
@@ -677,6 +699,7 @@ SonyTV.prototype.getPowerState = function (callback) {
   }
 };
 
+// homebridge callback to set power state
 SonyTV.prototype.setPowerState = function (state, callback) {
   var that = this;
   var onError = function (err) {
@@ -708,6 +731,7 @@ SonyTV.prototype.setPowerState = function (state, callback) {
   }
 };
 
+// sends the current power state to homebridge
 SonyTV.prototype.updatePowerState = function (state) {
   if (this.power != state) {
     this.power = state;
@@ -715,6 +739,7 @@ SonyTV.prototype.updatePowerState = function (state) {
   }
 };
 
+// make http request to TV
 SonyTV.prototype.makeHttpRequest = function (errcallback, resultcallback, url, post_data, canTurnTvOn) {
   var that = this;
   var data = '';
@@ -755,10 +780,12 @@ SonyTV.prototype.makeHttpRequest = function (errcallback, resultcallback, url, p
   }
 };
 
+// helper to create IRCC command string
 SonyTV.prototype.createIRCC = function (command) {
   return '<?xml version="1.0" encoding="utf-8"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body><u:X_SendIRCC xmlns:u="urn:schemas-sony-com:service:IRCC:1"><IRCCCode>' + command + '</IRCCCode></u:X_SendIRCC></s:Body></s:Envelope>';
 };
 
+// helper to apply post options to http request
 SonyTV.prototype.getPostOptions = function (url) {
   var that = this;
   if (url == '') url = '/sony/IRCC';
@@ -794,6 +821,7 @@ SonyTV.prototype.getPostOptions = function (url) {
   return post_options;
 };
 
+// helper function to extract and store passcode cookie from header
 SonyTV.prototype.setCookie = function (headers) {
   var that = this;
   var setcookie = null;
@@ -812,6 +840,7 @@ SonyTV.prototype.setCookie = function (headers) {
   }
 };
 
+// helper function to save cookie to disk
 SonyTV.prototype.saveCookie = function (cookie) {
   const that = this;
   if (cookie != undefined && cookie != null && cookie.length > 0) { var fs = require('fs'); }
@@ -826,6 +855,7 @@ SonyTV.prototype.saveCookie = function (cookie) {
   });
 };
 
+// helper function to load cookie from disk
 SonyTV.prototype.loadCookie = function () {
   var that = this;
   var fs = require('fs');
@@ -843,6 +873,7 @@ function isNull (object) {
   return object == undefined || null;
 }
 
+// helper class to convert an input type strin to a hb InputSourceType
 function InputSource (name, type) {
   this.name = name;
   this.type = type;
